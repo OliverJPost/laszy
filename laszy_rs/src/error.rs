@@ -1,5 +1,6 @@
 use std::io;
 
+#[derive(Debug)]
 pub enum LaszyError {
     IoError(io::Error),
     LasError(String),

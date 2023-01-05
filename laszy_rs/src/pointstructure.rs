@@ -1,7 +1,7 @@
 use derive_more::{IntoIterator, Index};
 
 #[derive(Default, IntoIterator, Index)]
-struct PointStructure {
+pub struct PointStructure {
     #[into_iterator]
     points: Vec<las::Point>
 }

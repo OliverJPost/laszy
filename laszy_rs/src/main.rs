@@ -1,3 +1,12 @@
+use laszy::{CroppingMethod, PointCloudBuilder};
+
 fn main() {
-    println!("Hello, world!");
+    let las_file = String::from("/Users/ole/Downloads/C_68DN1_CROPPED1.LAS");
+    let mut builder = PointCloudBuilder::from_file(&las_file).unwrap();
+    let mut ptcloud = builder
+        .with_crop(CroppingMethod::BoundingBox {
+            lower_left: (183536.12, 332378.91),
+            upper_right: (183579.03, 332431.91),
+        })
+        .to_cloud();
 }

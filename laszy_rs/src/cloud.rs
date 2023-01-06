@@ -1,6 +1,6 @@
-use las::Bounds;
 use crate::pointstructure::PointStructure;
 use crate::Point;
+use las::Bounds;
 
 pub struct PointCloud {
     points: PointStructure,
@@ -29,5 +29,9 @@ impl PointCloud {
 
     pub fn bounds(&self) -> &Bounds {
         &self.bounds
+    }
+
+    pub fn len(&self) -> usize {
+        self.points.points.len()
     }
 }

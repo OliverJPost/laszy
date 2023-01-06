@@ -1,13 +1,13 @@
+use crate::cloud::PointCloud;
+use crate::cropping::CroppingMethod;
+use crate::metadata::Metadata;
+use crate::thinning::ThinningMethod;
+use crate::LaszyError;
+use las::{Read, Reader};
 use std::error;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use las::{Read, Reader};
-use crate::cropping::CroppingMethod;
-use crate::LaszyError;
-use crate::metadata::Metadata;
-use crate::thinning::ThinningMethod;
-use crate::cloud::PointCloud;
 
 pub struct PointCloudBuilder {
     filepaths: Vec<String>,
@@ -37,15 +37,19 @@ impl PointCloudBuilder {
         let reader = Reader::new(BufReader::new(file))?;
         let header = reader.header();
         let metadata = Metadata::from_las_header(&header);
-        Ok(PointCloudBuilder{filepaths: vec![filepath.clone()], metadata, crop: CroppingMethod::None, thinning: ThinningMethod::None})
+        Ok(PointCloudBuilder {
+            filepaths: vec![filepath.clone()],
+            metadata,
+            crop: CroppingMethod::None,
+            thinning: ThinningMethod::None,
+        })
     }
-
 
     pub fn get_metadata(&self) -> &Metadata {
         &self.metadata
     }
 
-    pub fn with_crop(&mut self, crop: CroppingMethod)  -> &mut Self {
+    pub fn with_crop(&mut self, crop: CroppingMethod) -> &mut Self {
         self.crop = crop;
         self
     }
@@ -73,6 +77,9 @@ impl PointCloudBuilder {
                 if !self.crop.is_in_bounds(&point) {
                     continue;
                 }
+                if !self.thinning.is_included(i) {
+                    continue;
+                }
 
                 cloud.add_point(point);
                 loaded_points += 1;
@@ -82,7 +89,6 @@ impl PointCloudBuilder {
         println!("Loaded {} points", loaded_points);
         Ok(cloud)
     }
-
 }
 
 #[cfg(test)]
@@ -112,12 +118,40 @@ mod tests {
     #[test]
     fn test_with_crop() {
         let mut builder = get_test_builder();
-        let crop = CroppingMethod::BoundingBox{lower_left: (183_551.47,332_414.45), upper_right:(183_564.09,332_424.13)};
+        let crop = CroppingMethod::BoundingBox {
+            lower_left: (183_551.47, 332_414.45),
+            upper_right: (183_564.09, 332_424.13),
+        };
         builder.with_crop(crop);
         let cloud = builder.to_cloud().unwrap();
-        assert!(cloud.bounds().min.x > 183_551.47, "min x is {}", cloud.bounds().min.x);
-        assert!(cloud.bounds().min.y > 332_414.45, "min y is {}", cloud.bounds().min.y);
-        assert!(cloud.bounds().max.x < 183_564.09, "max x is {}", cloud.bounds().max.x);
-        assert!(cloud.bounds().max.y < 332_424.13, "max y is {}", cloud.bounds().max.y);
+        assert!(
+            cloud.bounds().min.x > 183_551.47,
+            "min x is {}",
+            cloud.bounds().min.x
+        );
+        assert!(
+            cloud.bounds().min.y > 332_414.45,
+            "min y is {}",
+            cloud.bounds().min.y
+        );
+        assert!(
+            cloud.bounds().max.x < 183_564.09,
+            "max x is {}",
+            cloud.bounds().max.x
+        );
+        assert!(
+            cloud.bounds().max.y < 332_424.13,
+            "max y is {}",
+            cloud.bounds().max.y
+        );
+    }
+
+    #[test]
+    fn test_with_thinning() {
+        let mut builder = get_test_builder();
+        let thinning = ThinningMethod::Random { percent: 0.1 };
+        builder.with_thinning(thinning);
+        let cloud = builder.to_cloud().unwrap();
+        assert!(cloud.len() < 5_400);
     }
 }

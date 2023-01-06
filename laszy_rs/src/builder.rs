@@ -57,19 +57,29 @@ impl PointCloudBuilder {
 
     pub fn to_cloud(&self) -> Result<PointCloud, LaszyError> {
         let mut cloud = PointCloud::new();
+        let mut pb = indicatif::ProgressBar::new(self.metadata.point_count() as u64);
+        let pb_increment = self.metadata.point_count() / 1000;
+        let mut loaded_points = 0;
         for filepath in &self.filepaths {
             let file = File::open(&filepath)?;
             let mut reader = Reader::new(BufReader::new(file))?;
             let header = reader.header();
             let points = reader.points();
-            for point in points {
+            for (i, point) in points.enumerate() {
                 let point = point?;
+                if i % pb_increment as usize == 0 {
+                    pb.inc(pb_increment);
+                }
                 if !self.crop.is_in_bounds(&point) {
                     continue;
                 }
+
                 cloud.add_point(point);
+                loaded_points += 1;
             }
         }
+        pb.finish();
+        println!("Loaded {} points", loaded_points);
         Ok(cloud)
     }
 

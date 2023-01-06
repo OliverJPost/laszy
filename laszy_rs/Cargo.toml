@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 las = "0.8.0"
 derive_more = "0.99.17"
+indicatif = "0.17.2"

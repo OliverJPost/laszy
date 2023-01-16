@@ -3,7 +3,7 @@ use crate::Point;
 use las::Bounds;
 
 pub struct PointCloud {
-    points: PointStructure,
+    pub points: PointStructure,
     bounds: Bounds,
 }
 

@@ -70,3 +70,5 @@ docs/_build/
 
 # Pyenv
 .python-version
+*.asc
+laszy_rs/test.asc.aux.xml

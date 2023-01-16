@@ -1,8 +1,11 @@
 use crate::cloud::PointCloud;
 use crate::cropping::CroppingMethod;
+use crate::csf::surface::ClothSurface;
 use crate::metadata::Metadata;
 use crate::thinning::ThinningMethod;
 use crate::LaszyError;
+use kdtree::distance::squared_euclidean;
+use kdtree::KdTree;
 use las::{Read, Reader};
 use std::error;
 use std::fs::File;
@@ -57,6 +60,81 @@ impl PointCloudBuilder {
     pub fn with_thinning(&mut self, method: ThinningMethod) -> &mut Self {
         self.thinning = method;
         self
+    }
+
+    fn perform_csf_simulation(
+        &self,
+        rigidness: usize,
+        cell_resolution: f64,
+        distance_threshold: f64,
+    ) -> Result<ClothSurface, LaszyError> {
+        let ll;
+        let ur;
+        match self.crop {
+            CroppingMethod::None => {
+                ll = (self.metadata.bounds().min.x, self.metadata.bounds().min.y);
+                ur = (self.metadata.bounds().max.x, self.metadata.bounds().max.y);
+            }
+            CroppingMethod::BoundingBox {
+                lower_left,
+                upper_right,
+            } => {
+                ll = (lower_left.0, lower_left.1);
+                ur = (upper_right.0, upper_right.1);
+            }
+        }
+        let top_z = self.metadata.bounds().min.z - 10.0;
+        let mut cloth = ClothSurface::initialize(
+            ll,
+            ur,
+            cell_resolution,
+            distance_threshold,
+            rigidness,
+            top_z,
+        );
+
+        println!("Creating CSF surface");
+        let pb = indicatif::ProgressBar::new(100);
+        let pb_step = self.metadata.point_count() / 100;
+        let mut i = 0;
+        for filepath in &self.filepaths {
+            let file = File::open(&filepath)?;
+            let mut reader = Reader::new(BufReader::new(file))?;
+            let mut points = reader.points();
+            while let Some(point) = points.next() {
+                if i % pb_step == 0 {
+                    pb.inc(1);
+                }
+                i += 1;
+                let point = point?;
+                if !self.crop.is_in_bounds(&point) {
+                    continue;
+                }
+                //Intentionally don't thin.
+
+                cloth.set_max_z_if_closest_to_particle(&point);
+            }
+        }
+        pb.finish();
+        cloth.fix_zero_max_heights();
+
+        println!("Created cloth surface, starting simulation...");
+
+        cloth.simulate(1000);
+        Ok(cloth)
+    }
+
+    pub fn to_dtm_using_csf(
+        &self,
+        filepath: &String,
+        rigidness: usize,
+        grid_resolution_meters: f64,
+        distance_threshold: f64,
+    ) -> Result<(), LaszyError> {
+        let cloth =
+            self.perform_csf_simulation(rigidness, grid_resolution_meters, distance_threshold)?;
+        cloth.to_asc(filepath);
+        Ok(())
     }
 
     pub fn to_cloud(&self) -> Result<PointCloud, LaszyError> {

@@ -24,8 +24,8 @@ impl ClothSurface {
         rigidness: f64,
         top_z: f64,
     ) -> ClothSurface {
-        let rows = ((upper_right.1 - lower_left.1) / cell_resolution).floor() as usize;
-        let columns = ((upper_right.0 - lower_left.0) / cell_resolution).floor() as usize;
+        let rows = ((upper_right.1 - lower_left.1) / cell_resolution).ceil() as usize;
+        let columns = ((upper_right.0 - lower_left.0) / cell_resolution).ceil() as usize;
         let mut particles: Array2<Particle> = Array2::default((rows, columns));
         for i in 0..rows {
             for j in 0..columns {
@@ -48,6 +48,21 @@ impl ClothSurface {
             bounds: (lower_left, upper_right_corrected),
             cell_resolution,
         }
+    }
+
+    pub fn is_ground_point(&self, point: &Point, kdtree: &KdTree<f64, f64, [f64; 2]>) -> bool {
+        let ll = self.bounds.0;
+        let ur = self.bounds.1;
+        let x = point.x;
+        let y = point.y;
+        let columns = self.particles.ncols();
+        let rows = self.particles.nrows();
+        let cell_resolution = self.cell_resolution;
+        let col = ((x - ll.0) / cell_resolution).floor() as usize;
+        let row = ((ur.1 - y) / cell_resolution).ceil() as usize;
+        let nearest_z = self.particles[[row, col]].z.get();
+        let distance = (point.z - nearest_z).abs();
+        distance < 1.0
     }
 
     fn iterate(&mut self) -> f64 {
@@ -141,11 +156,8 @@ impl ClothSurface {
         let rows = self.particles.nrows();
         let cell_resolution = self.cell_resolution;
         let col = ((x - ll.0) / cell_resolution).floor() as usize;
-        let row = ((ur.1 - y) / cell_resolution).floor() as usize;
-        if col >= columns || row >= rows {
-            println!("Point outside of cloth surface");
-            return;
-        }
+        let row = ((ur.1 - y) / cell_resolution).ceil() as usize;
+
         let particle = &mut self.particles[[row, col]];
         let distance = (particle.x - x).powi(2) + (particle.y - y).powi(2);
         if distance < particle.closest_pt_distance {

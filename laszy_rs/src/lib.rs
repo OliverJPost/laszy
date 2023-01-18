@@ -1,14 +1,15 @@
-mod pointstructure;
 mod builder;
-mod metadata;
-mod error;
-mod cropping;
-mod thinning;
 mod cloud;
+mod cropping;
 mod csf;
+mod error;
+mod metadata;
+mod pointstructure;
+mod thinning;
 
 pub use builder::PointCloudBuilder;
-pub use las::Point;
-pub use error::LaszyError;
-pub use metadata::Metadata;
 pub use cropping::CroppingMethod;
+pub use error::LaszyError;
+pub use las::Point;
+pub use metadata::Metadata;
+pub use thinning::ThinningMethod;

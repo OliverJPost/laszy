@@ -1,6 +1,8 @@
 use crate::pointstructure::PointStructure;
-use crate::Point;
+use crate::{LaszyError, Point};
 use las::Bounds;
+use las::{Color, Read, Reader, Transform, Vector, Write, Writer};
+use std::io::BufReader;
 
 pub struct PointCloud {
     pub points: PointStructure,
@@ -33,5 +35,29 @@ impl PointCloud {
 
     pub fn len(&self) -> usize {
         self.points.points.len()
+    }
+
+    pub fn to_las(&self, filepath: &String) -> Result<(), LaszyError> {
+        println!("Writing to {}", filepath);
+        println!("Points: {}", self.points.points.len());
+        let mut pb = indicatif::ProgressBar::new(self.points.points.len() as u64);
+        let file = std::fs::File::open(&String::from("/Users/ole/Downloads/C_68DN1.LAZ"))?; //fixme
+        let mut reader = Reader::new(BufReader::new(file))?;
+        let header = reader.header().clone();
+
+        let mut file = std::fs::File::create(filepath).unwrap();
+        let mut writer = las::Writer::new(file, header).unwrap();
+
+        let pb_increment = self.points.points.len() / 1000;
+        let mut i = 0;
+        for point in &self.points.points {
+            if i % pb_increment == 0 {
+                pb.inc(pb_increment as u64);
+            }
+            i += 1;
+            writer.write(point.clone())?;
+        }
+        pb.finish_with_message("done");
+        Ok(())
     }
 }

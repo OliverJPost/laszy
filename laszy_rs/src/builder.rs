@@ -6,6 +6,7 @@ use crate::thinning::ThinningMethod;
 use crate::LaszyError;
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
+use las::point::Classification;
 use las::{Read, Reader};
 use std::error;
 use std::fs::File;
@@ -17,6 +18,7 @@ pub struct PointCloudBuilder {
     metadata: Metadata,
     crop: CroppingMethod,
     thinning: ThinningMethod,
+    csf_filter: Option<(usize, f64, f64)>,
 }
 
 impl PointCloudBuilder {
@@ -45,6 +47,7 @@ impl PointCloudBuilder {
             metadata,
             crop: CroppingMethod::None,
             thinning: ThinningMethod::None,
+            csf_filter: None,
         })
     }
 
@@ -60,6 +63,66 @@ impl PointCloudBuilder {
     pub fn with_thinning(&mut self, method: ThinningMethod) -> &mut Self {
         self.thinning = method;
         self
+    }
+
+    pub fn with_csf_ground_reclassification(
+        &mut self,
+        rigidness: usize,
+        grid_resolution_meters: f64,
+        distance_threshold: f64,
+    ) -> &mut Self {
+        self.csf_filter = Some((rigidness, grid_resolution_meters, distance_threshold));
+        self
+    }
+
+    pub fn perform_csf_reclassification(
+        &mut self,
+        rigidness: f64,
+        grid_resolution_meters: f64,
+        distance_threshold: f64,
+    ) -> Result<PointCloud, LaszyError> {
+        let cloth =
+            self.perform_csf_simulation(rigidness, grid_resolution_meters, distance_threshold)?;
+
+        let mut kdtree = KdTree::new(2);
+        for point in cloth.particles.iter() {
+            kdtree
+                .add([point.x.clone(), point.y.clone()], point.z.get())
+                .unwrap();
+        }
+
+        let mut cloud = PointCloud::new();
+        let mut pb = indicatif::ProgressBar::new(self.metadata.point_count() as u64);
+        let pb_increment = self.metadata.point_count() / 1000;
+        let mut loaded_points = 0;
+        for filepath in &self.filepaths {
+            let file = File::open(&filepath)?;
+            let mut reader = Reader::new(BufReader::new(file))?;
+            let header = reader.header();
+            let points = reader.points();
+            for (i, point) in points.enumerate() {
+                let mut point = point?;
+                if i % pb_increment as usize == 0 {
+                    pb.inc(pb_increment);
+                }
+                if !self.crop.is_in_bounds(&point) {
+                    continue;
+                }
+                if !self.thinning.is_included(i) {
+                    continue;
+                }
+                if cloth.is_ground_point(&point, &kdtree) {
+                    point.classification = Classification::Ground;
+                } else {
+                    point.classification = Classification::Unclassified;
+                }
+                cloud.add_point(point);
+                loaded_points += 1;
+            }
+        }
+        pb.finish();
+        println!("Loaded {} points", loaded_points);
+        Ok(cloud)
     }
 
     fn perform_csf_simulation(

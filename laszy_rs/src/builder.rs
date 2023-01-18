@@ -64,7 +64,7 @@ impl PointCloudBuilder {
 
     fn perform_csf_simulation(
         &self,
-        rigidness: usize,
+        rigidness: f64,
         cell_resolution: f64,
         distance_threshold: f64,
     ) -> Result<ClothSurface, LaszyError> {
@@ -127,7 +127,7 @@ impl PointCloudBuilder {
     pub fn to_dtm_using_csf(
         &self,
         filepath: &String,
-        rigidness: usize,
+        rigidness: f64,
         grid_resolution_meters: f64,
         distance_threshold: f64,
     ) -> Result<(), LaszyError> {

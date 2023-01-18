@@ -9,7 +9,7 @@ use std::rc::Rc;
 pub struct ClothSurface {
     pub particles: Array2<Particle>,
     pub distance_threshold: f64,
-    pub rigidness: usize,
+    pub rigidness: f64,
     pub displacement: f64,
     bounds: ((f64, f64), (f64, f64)),
     cell_resolution: f64,
@@ -21,7 +21,7 @@ impl ClothSurface {
         upper_right: (f64, f64),
         cell_resolution: f64,
         distance_threshold: f64,
-        rigidness: usize,
+        rigidness: f64,
         top_z: f64,
     ) -> ClothSurface {
         let rows = ((upper_right.1 - lower_left.1) / cell_resolution).floor() as usize;

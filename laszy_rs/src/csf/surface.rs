@@ -50,13 +50,11 @@ impl ClothSurface {
         }
     }
 
-    pub fn is_ground_point(&self, point: &Point, kdtree: &KdTree<f64, f64, [f64; 2]>) -> bool {
+    pub fn is_ground_point(&self, point: &Point) -> bool {
         let ll = self.bounds.0;
         let ur = self.bounds.1;
         let x = point.x;
         let y = point.y;
-        let columns = self.particles.ncols();
-        let rows = self.particles.nrows();
         let cell_resolution = self.cell_resolution;
         let col = ((x - ll.0) / cell_resolution).floor() as usize;
         let row = ((ur.1 - y) / cell_resolution).ceil() as usize;

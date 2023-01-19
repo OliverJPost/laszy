@@ -41,7 +41,7 @@ impl PointCloud {
         println!("Writing to {}", filepath);
         println!("Points: {}", self.points.points.len());
         let mut pb = indicatif::ProgressBar::new(self.points.points.len() as u64);
-        let file = std::fs::File::open(&String::from("/Users/ole/Downloads/C_68DN1.LAZ"))?; //fixme
+        let file = std::fs::File::open(&String::from("/Users/ole/Downloads/C_30GZ2_cropped.las"))?; //fixme
         let mut reader = Reader::new(BufReader::new(file))?;
         let header = reader.header().clone();
 

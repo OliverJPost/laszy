@@ -6,7 +6,8 @@ use crate::thinning::ThinningMethod;
 use crate::LaszyError;
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
-use las::point::Classification;
+use las::point::{Classification, Format};
+use las::Write;
 use las::{Read, Reader};
 use std::error;
 use std::fs::File;
@@ -201,6 +202,59 @@ impl PointCloudBuilder {
         pb.finish();
         println!("Loaded {} points", loaded_points);
         Ok(cloud)
+    }
+
+    pub fn to_file(&self, filepath: &String) -> Result<(), LaszyError> {
+        let mut file = std::fs::File::create(filepath)?;
+        let mut builder = las::Builder::default();
+        builder.point_format = self.metadata.point_format().clone();
+        let mut writer = las::Writer::new(file, builder.into_header()?)?;
+
+        let cloth = match self.csf_filter {
+            Some((rigidness, grid_resolution_meters, distance_threshold)) => {
+                Some(self.perform_csf_simulation(
+                    rigidness as f64,
+                    grid_resolution_meters,
+                    distance_threshold,
+                )?)
+            }
+            None => None,
+        };
+
+        let mut pb = indicatif::ProgressBar::new(self.metadata.point_count() as u64);
+        let pb_increment = self.metadata.point_count() / 1000;
+        let mut loaded_points = 0;
+        for filepath in &self.filepaths {
+            let file = File::open(&filepath)?;
+            let mut reader = Reader::new(BufReader::new(file))?;
+            let points = reader.points();
+            for (i, point) in points.enumerate() {
+                let mut point = point?;
+                if i % pb_increment as usize == 0 {
+                    pb.inc(pb_increment);
+                }
+                if !self.crop.is_in_bounds(&point) {
+                    continue;
+                }
+                if !self.thinning.is_included(i) {
+                    continue;
+                }
+                if let Some(ref cloth) = cloth {
+                    if cloth.is_ground_point(&point) {
+                        point.classification = Classification::Ground;
+                    } else {
+                        // Only overwrite existing classification if it was classified ground before
+                        if point.classification == Classification::Ground {
+                            point.classification = Classification::Unclassified;
+                        }
+                    }
+                }
+                writer.write(point).unwrap();
+                loaded_points += 1;
+            }
+        }
+        pb.finish();
+        Ok(())
     }
 }
 

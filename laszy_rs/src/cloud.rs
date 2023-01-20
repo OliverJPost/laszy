@@ -1,6 +1,6 @@
 use crate::{LaszyError, Point};
 use las::Bounds;
-use las::{Color, Read, Reader, Transform, Vector, Write, Writer};
+use las::{Read, Reader, Write};
 use std::io::BufReader;
 
 pub struct PointCloud {

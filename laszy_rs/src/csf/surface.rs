@@ -4,7 +4,6 @@ use kdtree::KdTree;
 use las::Point;
 use ndarray::Array2;
 use std::io::prelude::*;
-use std::rc::Rc;
 
 pub struct ClothSurface {
     pub particles: Array2<Particle>,
@@ -150,8 +149,6 @@ impl ClothSurface {
         let ur = self.bounds.1;
         let x = point.x;
         let y = point.y;
-        let columns = self.particles.ncols();
-        let rows = self.particles.nrows();
         let cell_resolution = self.cell_resolution;
         let col = ((x - ll.0) / cell_resolution).floor() as usize;
         let row = ((ur.1 - y) / cell_resolution).ceil() as usize;

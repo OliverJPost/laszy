@@ -4,15 +4,11 @@ use crate::csf::surface::ClothSurface;
 use crate::metadata::Metadata;
 use crate::thinning::ThinningMethod;
 use crate::LaszyError;
-use kdtree::distance::squared_euclidean;
-use kdtree::KdTree;
-use las::point::{Classification, Format};
+use las::point::Classification;
 use las::{Point, Write};
 use las::{Read, Reader};
-use std::error;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
 
 pub struct PointCloudBuilder {
     filepaths: Vec<String>,
@@ -172,10 +168,10 @@ impl PointCloudBuilder {
     }
 
     pub fn to_file(&mut self, filepath: &String) -> Result<(), LaszyError> {
-        let mut file = std::fs::File::create(filepath)?;
+        let file = std::fs::File::create(filepath)?;
         let mut builder = las::Builder::default();
         builder.point_format = self.metadata.point_format().clone();
-        let mut writer = las::Writer::new(file, builder.into_header()?)?;
+        let writer = las::Writer::new(file, builder.into_header()?)?;
         self.writer = Some(writer);
         let loaded_points = self.run_building_iterator("Writing points...")?;
         println!("Succesfully wrote {} points to {}", loaded_points, filepath);

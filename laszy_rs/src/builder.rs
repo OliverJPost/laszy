@@ -111,15 +111,15 @@ impl PointCloudBuilder {
             top_z,
         );
 
-        println!("Creating CSF surface");
+        println!("Creating CSF surface...");
         let pb = indicatif::ProgressBar::new(100);
         let pb_step = (self.metadata.point_count() / 100) as usize;
         let mut count = 0_usize;
         for filepath in &self.filepaths {
             let file = File::open(&filepath)?;
             let mut reader = Reader::new(BufReader::new(file))?;
-            let mut points = reader.points();
-            while let Some(point) = points.next() {
+            let mut point_iter = reader.points();
+            for (i, point) in point_iter.enumerate() {
                 if i % pb_step == 0 {
                     pb.inc(1);
                 }
@@ -143,7 +143,6 @@ impl PointCloudBuilder {
         cloth.fix_zero_max_heights();
 
         println!("Created cloth surface, starting simulation...");
-
         cloth.simulate(1000);
         Ok(cloth)
     }
@@ -161,10 +160,9 @@ impl PointCloudBuilder {
         Ok(())
     }
 
-    pub fn to_cloud(mut self) -> Result<PointCloud, LaszyError> {
+    pub fn to_cloud(&mut self) -> Result<PointCloud, LaszyError> {
         self.cloud = Some(PointCloud::new());
-        println!("Processing points...");
-        let loaded_points = self.run_building_iterator()?;
+        let loaded_points = self.run_building_iterator("Processing points...")?;
         println!(
             "Succesfully loaded {} points into point cloud.",
             loaded_points
@@ -172,19 +170,18 @@ impl PointCloudBuilder {
         Ok(self.cloud.take().unwrap())
     }
 
-    pub fn to_file(mut self, filepath: &String) -> Result<(), LaszyError> {
+    pub fn to_file(&mut self, filepath: &String) -> Result<(), LaszyError> {
         let mut file = std::fs::File::create(filepath)?;
         let mut builder = las::Builder::default();
         builder.point_format = self.metadata.point_format().clone();
         let mut writer = las::Writer::new(file, builder.into_header()?)?;
         self.writer = Some(writer);
-        println!("Writing points...");
-        let loaded_points = self.run_building_iterator()?;
+        let loaded_points = self.run_building_iterator("Writing points...")?;
         println!("Succesfully wrote {} points to {}", loaded_points, filepath);
         Ok(())
     }
 
-    fn run_building_iterator(&mut self) -> Result<u64, LaszyError> {
+    fn run_building_iterator(&mut self, message: &str) -> Result<usize, LaszyError> {
         let cloth = match self.csf_filter {
             Some((rigidness, grid_resolution_meters, distance_threshold)) => {
                 Some(self.perform_csf_simulation(
@@ -197,6 +194,7 @@ impl PointCloudBuilder {
         };
 
         let mut pb = indicatif::ProgressBar::new(self.metadata.point_count() as u64);
+        println!("{message}");
         let pb_increment = self.metadata.point_count() / 1000;
         let mut loaded_points = 0_usize;
         for filepath in &self.filepaths {

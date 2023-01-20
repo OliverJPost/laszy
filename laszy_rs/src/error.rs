@@ -4,7 +4,8 @@ use std::io;
 pub enum LaszyError {
     IoError(io::Error),
     LasError(String),
-    LaszyError(String)
+    LaszyError(String),
+    EmptyCloud(String),
 }
 
 impl From<las::Error> for LaszyError {

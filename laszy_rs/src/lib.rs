@@ -5,6 +5,8 @@ mod csf;
 mod error;
 mod metadata;
 mod pointstructure;
+#[cfg(test)]
+mod tests;
 mod thinning;
 
 pub use builder::PointCloudBuilder;

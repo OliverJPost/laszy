@@ -1,17 +1,22 @@
-use laszy::{CroppingMethod, PointCloudBuilder, ThinningMethod};
+use crate::{CroppingMethod, PointCloudBuilder, ThinningMethod};
 
-fn main() {
-    let las_file = String::from("/Users/ole/Downloads/C_30GZ2_cropped.las");
-    let mut builder = PointCloudBuilder::from_file(&las_file).unwrap();
+fn get_test_builder() -> PointCloudBuilder {
+    let path = "test.las".to_string();
+    PointCloudBuilder::from_file(&path).unwrap()
+}
+
+#[test]
+fn test_incorrect_crop() {
+    let mut builder = get_test_builder();
     let re = builder
-        // .with_crop(CroppingMethod::BoundingBox {
-        //     lower_left: (182011.3, 335505.4),
-        //     upper_right: (182997.8, 336497.5),
-        // })
-        //.with_thinning(ThinningMethod::EveryNth { nth: 40 })
-        //.to_dtm_using_csf(&String::from("test17_0.asc"), 0.0, 5.0, 0.1);
+        .with_crop(CroppingMethod::BoundingBox {
+            lower_left: (182_011.3, 335_505.4),
+            upper_right: (182_997.8, 336_497.5),
+        })
+        .with_thinning(ThinningMethod::EveryNth { nth: 40 })
         .with_csf_ground_reclassification(0.5, 5.0, 0.1)
         .to_file(&String::from("result.las"));
+    assert!(re.is_err());
     println!("Result: {:?}", re);
 }
 

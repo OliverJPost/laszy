@@ -4,7 +4,6 @@ mod cropping;
 mod csf;
 mod error;
 mod metadata;
-mod pointstructure;
 #[cfg(test)]
 mod tests;
 mod thinning;

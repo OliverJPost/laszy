@@ -113,8 +113,8 @@ impl PointCloudBuilder {
 
         println!("Creating CSF surface");
         let pb = indicatif::ProgressBar::new(100);
-        let pb_step = self.metadata.point_count() / 100;
-        let mut i = 0;
+        let pb_step = (self.metadata.point_count() / 100) as usize;
+        let mut count = 0_usize;
         for filepath in &self.filepaths {
             let file = File::open(&filepath)?;
             let mut reader = Reader::new(BufReader::new(file))?;
@@ -127,15 +127,19 @@ impl PointCloudBuilder {
                 if !self.crop.is_in_bounds(&point) {
                     continue;
                 }
-                if !self.thinning.is_included(i as usize) {
+                if !self.thinning.is_included(count) {
                     continue;
                 }
-
+                count += 1;
                 cloth.set_max_z_if_closest_to_particle(&point);
-                i += 1;
             }
         }
         pb.finish();
+
+        if count == 0 {
+            return Err(LaszyError::EmptyCloud(
+                "The provided cropping and thinning methods resulted in no points being included in the simulation.".to_string()));
+        }
         cloth.fix_zero_max_heights();
 
         println!("Created cloth surface, starting simulation...");
@@ -194,7 +198,7 @@ impl PointCloudBuilder {
 
         let mut pb = indicatif::ProgressBar::new(self.metadata.point_count() as u64);
         let pb_increment = self.metadata.point_count() / 1000;
-        let mut loaded_points = 0;
+        let mut loaded_points = 0_usize;
         for filepath in &self.filepaths {
             let file = File::open(&filepath)?;
             let mut reader = Reader::new(BufReader::new(file))?;
@@ -207,7 +211,7 @@ impl PointCloudBuilder {
                 if !self.crop.is_in_bounds(&point) {
                     continue;
                 }
-                if !self.thinning.is_included(i) {
+                if !self.thinning.is_included(loaded_points) {
                     continue;
                 }
                 if let Some(ref cloth) = cloth {

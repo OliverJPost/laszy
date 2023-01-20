@@ -182,6 +182,7 @@ impl PointCloudBuilder {
         let writer = las::Writer::new(file, builder.into_header()?)?;
         self.writer = Some(writer);
         let loaded_points = self.run_building_iterator("Writing points...")?;
+        self.writer.take();
         println!("Succesfully wrote {} points to {}", loaded_points, filepath);
         Ok(())
     }

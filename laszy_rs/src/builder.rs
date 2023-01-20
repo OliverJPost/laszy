@@ -97,6 +97,7 @@ impl PointCloudBuilder {
         let pb = indicatif::ProgressBar::new(100);
         let pb_step = (self.metadata.point_count() / 100) as usize;
         let mut count = 0_usize;
+        let mut thin_count = 0_usize;
         for filepath in &self.filepaths {
             let file = File::open(&filepath)?;
             let mut reader = Reader::new(BufReader::new(file))?;
@@ -106,10 +107,17 @@ impl PointCloudBuilder {
                     pb.inc(1);
                 }
                 let point = point?;
-                if self.is_included(&point, count) {
-                    count += 1;
-                    cloth.set_max_z_if_closest_to_particle(&point);
+                if !self.crop.is_in_bounds(&point) {
+                    continue;
                 }
+                if !self.thinning.is_included(thin_count) {
+                    thin_count += 1;
+                    continue;
+                }
+                thin_count += 1;
+
+                count += 1;
+                cloth.set_max_z_if_closest_to_particle(&point);
             }
         }
         pb.finish();
@@ -194,6 +202,7 @@ impl PointCloudBuilder {
         println!("{message}");
         let pb_increment = self.metadata.point_count() / 1000;
         let mut count = 0_usize;
+        let mut thin_count = 0_usize;
         for filepath in &self.filepaths {
             let file = File::open(&filepath)?;
             let mut reader = Reader::new(BufReader::new(file))?;
@@ -203,9 +212,15 @@ impl PointCloudBuilder {
                 if i % pb_increment as usize == 0 {
                     pb.inc(pb_increment);
                 }
-                if !self.is_included(&point, count) {
+                if !self.crop.is_in_bounds(&point) {
                     continue;
                 }
+                if !self.thinning.is_included(thin_count) {
+                    thin_count += 1;
+                    continue;
+                }
+                thin_count += 1;
+
                 if let Some(ref cloth) = cloth {
                     if cloth.is_ground_point(&point) {
                         point.classification = Classification::Ground;
@@ -228,16 +243,6 @@ impl PointCloudBuilder {
         }
         pb.finish();
         Ok(count)
-    }
-
-    fn is_included(&self, point: &Point, index: usize) -> bool {
-        if !self.crop.is_in_bounds(point) {
-            return false;
-        }
-        if !self.thinning.is_included(index) {
-            return false;
-        }
-        true
     }
 }
 

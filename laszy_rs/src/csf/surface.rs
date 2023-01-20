@@ -50,15 +50,11 @@ impl ClothSurface {
     }
 
     pub fn is_ground_point(&self, point: &Point) -> bool {
-        let ll = self.bounds.0;
-        let ur = self.bounds.1;
-        let x = point.x;
-        let y = point.y;
-        let cell_resolution = self.cell_resolution;
-        let col = ((x - ll.0) / cell_resolution).floor() as usize;
-        let row = ((ur.1 - y) / cell_resolution).ceil() as usize;
-        let nearest_z = self.particles[[row, col]].z.get();
-        let distance = (point.z - nearest_z).abs();
+        let particle = match self.get_closest_cell(point) {
+            Some((row, column)) => &self.particles[[row, column]],
+            None => return false,
+        };
+        let distance = (point.z - particle.z.get()).abs();
         distance < 1.0
     }
 
@@ -145,6 +141,20 @@ impl ClothSurface {
 
     pub fn set_max_z_if_closest_to_particle(&mut self, point: &Point) {
         // Find what pixel of self.particles this point is closest to
+
+        let particle = match self.get_closest_cell(point) {
+            Some((row, col)) => &mut self.particles[[row, col]],
+            None => return,
+        };
+
+        let distance = (particle.x - point.x).powi(2) + (particle.y - point.y).powi(2);
+        if distance < particle.closest_pt_distance {
+            particle.closest_pt_distance = distance;
+            particle.max_z = point.z;
+        }
+    }
+
+    fn get_closest_cell(&self, point: &Point) -> Option<(usize, usize)> {
         let ll = self.bounds.0;
         let ur = self.bounds.1;
         let x = point.x;
@@ -152,13 +162,14 @@ impl ClothSurface {
         let cell_resolution = self.cell_resolution;
         let col = ((x - ll.0) / cell_resolution).floor() as usize;
         let row = ((ur.1 - y) / cell_resolution).ceil() as usize;
-
-        let particle = &mut self.particles[[row, col]];
-        let distance = (particle.x - x).powi(2) + (particle.y - y).powi(2);
-        if distance < particle.closest_pt_distance {
-            particle.closest_pt_distance = distance;
-            particle.max_z = point.z;
+        if row >= self.particles.nrows() || col >= self.particles.ncols() {
+            println!(
+                "WARNING: Point ({}, {}) outside of cloth surface with ll: ({}, {}), ur ({}, {})",
+                point.x, point.y, ll.0, ll.1, ur.0, ur.1
+            );
+            return None;
         }
+        Some((row, col))
     }
 
     pub fn fix_zero_max_heights(&mut self) {

@@ -9,5 +9,8 @@ name = "laszy"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.17.3", features = ["extension-module"] }
+pyo3 = { version = "0.18.0", features = ["extension-module"] }
 laszy = { path = "../laszy_rs" }
+numpy = "0.18.0"
+ndarray = "0.15.6"
+las = "0.8.0"

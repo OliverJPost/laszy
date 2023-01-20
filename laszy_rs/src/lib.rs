@@ -9,6 +9,7 @@ mod tests;
 mod thinning;
 
 pub use builder::PointCloudBuilder;
+pub use cloud::PointCloud;
 pub use cropping::CroppingMethod;
 pub use error::LaszyError;
 pub use las::Point;

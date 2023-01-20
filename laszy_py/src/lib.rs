@@ -1,8 +1,48 @@
 extern crate laszy as laszy_rs;
 
+use laszy_rs::PointCloud as _PointCloud;
 use laszy_rs::PointCloudBuilder as _PointCloudBuilder;
+use numpy::PyArray;
 use pyo3::prelude::*;
 use std::ops::DerefMut;
+
+#[pyclass]
+struct PointCloud {
+    cloud: _PointCloud,
+}
+
+#[pymethods]
+impl PointCloud {
+    #[staticmethod]
+    pub fn new() -> Self {
+        PointCloud {
+            cloud: _PointCloud::new(),
+        }
+    }
+
+    #[getter]
+    pub fn points<'py>(&self, py: Python<'py>) -> PyResult<&'py PyArray<f64, ndarray::Ix2>> {
+        let mut xyz = ndarray::Array2::<f64>::zeros((self.cloud.points.len(), 3));
+        for (i, point) in self.cloud.points.iter().enumerate() {
+            xyz[[i, 0]] = point.x;
+            xyz[[i, 1]] = point.y;
+            xyz[[i, 2]] = point.z;
+        }
+        Ok(PyArray::from_owned_array(py, xyz))
+    }
+
+    #[getter]
+    pub fn ground_points<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<&'py PyArray<bool, ndarray::Ix1>> {
+        let mut ground_pts = ndarray::Array1::<bool>::default(self.cloud.points.len());
+        for (i, point) in self.cloud.points.iter().enumerate() {
+            ground_pts[[i]] = point.classification == las::point::Classification::Ground;
+        }
+        Ok(PyArray::from_owned_array(py, ground_pts))
+    }
+}
 
 #[pyclass]
 struct PointCloudBuilder {
@@ -72,6 +112,14 @@ impl PointCloudBuilder {
         let re = self.builder.to_file(&filepath);
         match re {
             Ok(_) => Ok(()),
+            Err(e) => Err(Self::parse_error_to_python_exception(e.to_string())),
+        }
+    }
+
+    pub fn to_cloud(&mut self) -> PyResult<PointCloud> {
+        let cloud = self.builder.to_cloud();
+        match cloud {
+            Ok(cloud) => Ok(PointCloud { cloud }),
             Err(e) => Err(Self::parse_error_to_python_exception(e.to_string())),
         }
     }

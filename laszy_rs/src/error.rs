@@ -1,6 +1,7 @@
+use derive_more::Display;
 use std::io;
 
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum LaszyError {
     IoError(io::Error),
     LasError(String),

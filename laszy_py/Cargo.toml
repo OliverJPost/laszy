@@ -1,5 +1,5 @@
 [package]
-name = "laszy"
+name = "laszy_py"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.17.3", features = ["extension-module"] }
+laszy = { path = "../laszy_rs" }

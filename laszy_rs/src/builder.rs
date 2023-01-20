@@ -129,7 +129,7 @@ impl PointCloudBuilder {
         cloth.fix_zero_max_heights();
 
         println!("Created cloth surface, starting simulation...");
-        cloth.simulate(1000);
+        cloth.simulate();
         Ok(cloth)
     }
 

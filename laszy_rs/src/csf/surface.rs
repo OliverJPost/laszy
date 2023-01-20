@@ -1,4 +1,5 @@
 use crate::csf::particle::Particle;
+use indicatif::ProgressStyle;
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
 use las::Point;
@@ -43,7 +44,7 @@ impl ClothSurface {
             particles,
             distance_threshold,
             rigidness,
-            displacement: 0.2,
+            displacement: 0.05,
             bounds: (lower_left, upper_right_corrected),
             cell_resolution,
         }
@@ -59,33 +60,40 @@ impl ClothSurface {
     }
 
     fn iterate(&mut self) -> f64 {
-        let mut max_distance = 0.0;
         for i in 0..self.particles.nrows() {
             for j in 0..self.particles.ncols() {
                 let neighbours = self.get_neighbours(i, j);
-                let distance = self.particles[[i, j]].apply_force(
-                    self.rigidness,
-                    neighbours,
-                    self.displacement,
-                );
+                self.particles[[i, j]].apply_force(self.rigidness, neighbours, self.displacement);
+            }
+        }
+        let mut max_distance = 0.0;
+        for i in 0..self.particles.nrows() {
+            for j in 0..self.particles.ncols() {
+                let mut particle = &mut self.particles[[i, j]];
+                let distance = (particle.z.get() - particle.prev_z).abs();
                 if distance > max_distance {
                     max_distance = distance;
                 }
+                particle.prev_z = particle.z.get();
             }
         }
         max_distance
     }
 
-    pub fn simulate(&mut self, max_iterations: usize) {
+    pub fn simulate(&mut self) {
         let mut iteration = 0;
         let mut max_distance = f64::INFINITY;
-        let pb = indicatif::ProgressBar::new(max_iterations as u64);
-        while iteration < max_iterations && max_distance > self.distance_threshold {
-            pb.inc(1);
+        let spinner = indicatif::ProgressBar::new_spinner();
+        while max_distance > self.distance_threshold {
+            spinner.set_message(format!(
+                "Distance threshold {} not reached, currently at {:.3}",
+                self.distance_threshold, max_distance
+            ));
+            spinner.inc(1);
             max_distance = self.iterate();
             iteration += 1;
         }
-        pb.finish();
+        spinner.finish_with_message(format!("Simulation finished with {} iterations", iteration));
     }
 
     fn get_neighbours(&self, i: usize, j: usize) -> Vec<&Particle> {

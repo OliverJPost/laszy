@@ -6,6 +6,7 @@ pub struct Particle {
     pub y: f64,
     pub z: Cell<f64>,
     pub max_z: f64,
+    pub prev_z: f64,
     pub is_moveable: Cell<bool>,
     pub closest_pt_distance: f64,
 }
@@ -16,33 +17,27 @@ impl Particle {
             x,
             y,
             z: Cell::new(z),
+            prev_z: z,
             max_z,
             is_moveable: Cell::new(true),
             closest_pt_distance: f64::MAX,
         }
     }
 
-    pub fn apply_force(
-        &self,
-        rigidness: f64,
-        neighbours: Vec<&Particle>,
-        displacement: f64,
-    ) -> f64 {
-        let current_z = self.z.get();
+    pub fn apply_force(&self, rigidness: f64, neighbours: Vec<&Particle>, displacement: f64) {
         self.apply_internal_force(rigidness, neighbours);
         self.apply_external_force(displacement);
         if self.z.get() > self.max_z {
             self.z.set(self.max_z);
             self.is_moveable.set(false);
         }
-        (self.z.get() - current_z).abs()
     }
 
     fn apply_internal_force(&self, rigidness: f64, neighbours: Vec<&Particle>) {
         for neighbour in neighbours {
-            let mut ztransform = self.z_difference(neighbour);
+            let mut ztransform = self.z_difference(neighbour) / 2.0;
             if neighbour.is_moveable.get() {
-                ztransform *= 0.5; // Halve the force if the neighbour is moveable
+                //ztransform *= 0.5; // Halve the force if the neighbour is moveable
                 neighbour.z.set(neighbour.z.get() + ztransform * rigidness);
             }
             if self.is_moveable.get() {
@@ -68,6 +63,7 @@ impl Default for Particle {
             x: 0.0,
             y: 0.0,
             z: Cell::new(0.0),
+            prev_z: 0.0,
             max_z: 0.0,
             is_moveable: Cell::new(true),
             closest_pt_distance: f64::MAX,

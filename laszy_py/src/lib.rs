@@ -124,6 +124,25 @@ impl PointCloudBuilder {
         }
     }
 
+    pub fn to_dtm_using_csf(
+        &mut self,
+        filepath: String,
+        rigidness: f64,
+        grid_resolution_meters: f64,
+        distance_threshold: f64,
+    ) -> PyResult<()> {
+        let re = self.builder.to_dtm_using_csf(
+            &filepath,
+            rigidness,
+            grid_resolution_meters,
+            distance_threshold,
+        );
+        match re {
+            Ok(_) => Ok(()),
+            Err(e) => Err(Self::parse_error_to_python_exception(e.to_string())),
+        }
+    }
+
     #[staticmethod]
     fn parse_error_to_python_exception(e: String) -> PyErr {
         PyErr::new::<pyo3::exceptions::PyException, _>(e)

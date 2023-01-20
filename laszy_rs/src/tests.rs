@@ -14,7 +14,7 @@ fn test_incorrect_crop() {
             upper_right: (182_997.8, 336_497.5),
         })
         .with_thinning(ThinningMethod::EveryNth { nth: 40 })
-        .with_csf_ground_reclassification(0.5, 5.0, 0.1)
+        .with_csf_ground_reclassification(0.5, 5.0, 0.1, 1.0)
         .to_file(&String::from("result.las"));
     assert!(re.is_err());
     println!("Result: {:?}", re);
@@ -30,7 +30,7 @@ fn test_extreme_thinning() {
     let re = builder
         .with_crop(crop)
         .with_thinning(ThinningMethod::EveryNth { nth: 40_000_000 })
-        .with_csf_ground_reclassification(0.5, 5.0, 0.1)
+        .with_csf_ground_reclassification(0.5, 5.0, 0.1, 1.0)
         .to_file(&String::from("result.las"));
     assert!(re.is_ok());
     println!("Result: {:?}", re);
@@ -46,7 +46,7 @@ fn test_to_file() {
     let re = builder
         .with_crop(crop)
         .with_thinning(ThinningMethod::EveryNth { nth: 40 })
-        .with_csf_ground_reclassification(0.5, 5.0, 0.1)
+        .with_csf_ground_reclassification(0.5, 5.0, 0.1, 1.0)
         .to_file(&String::from("result.las"));
     assert!(re.is_ok());
     println!("Result: {:?}", re);

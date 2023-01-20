@@ -15,7 +15,7 @@ pub struct PointCloudBuilder {
     metadata: Metadata,
     crop: CroppingMethod,
     thinning: ThinningMethod,
-    csf_filter: Option<(f64, f64, f64)>,
+    csf_filter: Option<(f64, f64, f64, f64)>,
     cloud: Option<PointCloud>,
     writer: Option<las::Writer<File>>,
 }
@@ -70,9 +70,15 @@ impl PointCloudBuilder {
         &mut self,
         rigidness: f64,
         grid_resolution_meters: f64,
-        distance_threshold: f64,
+        simulation_threshold: f64,
+        classification_threshold: f64,
     ) -> &mut Self {
-        self.csf_filter = Some((rigidness, grid_resolution_meters, distance_threshold));
+        self.csf_filter = Some((
+            rigidness,
+            grid_resolution_meters,
+            simulation_threshold,
+            classification_threshold,
+        ));
         self
     }
 
@@ -80,7 +86,8 @@ impl PointCloudBuilder {
         &self,
         rigidness: f64,
         cell_resolution: f64,
-        distance_threshold: f64,
+        simulation_threshold: f64,
+        classification_threshold: f64,
     ) -> Result<ClothSurface, LaszyError> {
         let (ll, ur) = self.get_crop_corners();
         let top_z = self.metadata.bounds().min.z - 10.0;
@@ -88,7 +95,8 @@ impl PointCloudBuilder {
             ll,
             ur,
             cell_resolution,
-            distance_threshold,
+            simulation_threshold,
+            classification_threshold,
             rigidness,
             top_z,
         );
@@ -159,8 +167,12 @@ impl PointCloudBuilder {
         grid_resolution_meters: f64,
         distance_threshold: f64,
     ) -> Result<(), LaszyError> {
-        let cloth =
-            self.perform_csf_simulation(rigidness, grid_resolution_meters, distance_threshold)?;
+        let cloth = self.perform_csf_simulation(
+            rigidness,
+            grid_resolution_meters,
+            distance_threshold,
+            0.0,
+        )?;
         cloth.to_asc(filepath);
         Ok(())
     }
@@ -189,13 +201,17 @@ impl PointCloudBuilder {
 
     fn run_building_iterator(&mut self, message: &str) -> Result<usize, LaszyError> {
         let cloth = match self.csf_filter {
-            Some((rigidness, grid_resolution_meters, distance_threshold)) => {
-                Some(self.perform_csf_simulation(
-                    rigidness as f64,
-                    grid_resolution_meters,
-                    distance_threshold,
-                )?)
-            }
+            Some((
+                rigidness,
+                grid_resolution_meters,
+                simulation_threshold,
+                classification_threshold,
+            )) => Some(self.perform_csf_simulation(
+                rigidness as f64,
+                grid_resolution_meters,
+                simulation_threshold,
+                classification_threshold,
+            )?),
             None => None,
         };
 

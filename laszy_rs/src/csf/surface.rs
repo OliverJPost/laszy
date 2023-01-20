@@ -8,7 +8,8 @@ use std::io::prelude::*;
 
 pub struct ClothSurface {
     pub particles: Array2<Particle>,
-    pub distance_threshold: f64,
+    pub simulation_threshold: f64,
+    pub classification_threshold: f64,
     pub rigidness: f64,
     pub displacement: f64,
     bounds: ((f64, f64), (f64, f64)),
@@ -20,7 +21,8 @@ impl ClothSurface {
         lower_left: (f64, f64),
         upper_right: (f64, f64),
         cell_resolution: f64,
-        distance_threshold: f64,
+        simulation_threshold: f64,
+        classification_threshold: f64,
         rigidness: f64,
         top_z: f64,
     ) -> ClothSurface {
@@ -42,7 +44,8 @@ impl ClothSurface {
         );
         ClothSurface {
             particles,
-            distance_threshold,
+            simulation_threshold,
+            classification_threshold,
             rigidness,
             displacement: 0.05,
             bounds: (lower_left, upper_right_corrected),
@@ -56,7 +59,7 @@ impl ClothSurface {
             None => return false,
         };
         let distance = (point.z - particle.z.get()).abs();
-        distance < 1.0
+        distance < self.classification_threshold
     }
 
     fn iterate(&mut self) -> f64 {
@@ -84,10 +87,10 @@ impl ClothSurface {
         let mut iteration = 0;
         let mut max_distance = f64::INFINITY;
         let spinner = indicatif::ProgressBar::new_spinner();
-        while max_distance > self.distance_threshold {
+        while max_distance > self.simulation_threshold {
             spinner.set_message(format!(
-                "Distance threshold {} not reached, currently at {:.3}",
-                self.distance_threshold, max_distance
+                "Simulation threshold {} (meters) not reached, currently at {:.3}",
+                self.simulation_threshold, max_distance
             ));
             spinner.inc(1);
             max_distance = self.iterate();

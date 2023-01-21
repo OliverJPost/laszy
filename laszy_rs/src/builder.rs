@@ -298,9 +298,15 @@ impl PointCloudBuilder {
     /// let cloud = builder.to_file(&"test_output.las".to_string()).unwrap();
     /// ```
     pub fn to_file(&mut self, filepath: &String) -> Result<(), LaszyError> {
+        if !filepath.ends_with(".las") && !filepath.ends_with(".laz") {
+            return Err(LaszyError::InvalidFileExtension(
+                "Filepath must end in .las or .laz".to_string(),
+            ));
+        }
         let file = std::fs::File::create(filepath)?;
         let mut builder = las::Builder::default();
         builder.point_format = self.metadata.point_format().clone();
+        builder.point_format.is_compressed = filepath.ends_with(".laz");
         let writer = las::Writer::new(file, builder.into_header()?)?;
         self.writer = Some(writer);
         let loaded_points = self.run_building_iterator("Writing points...")?;

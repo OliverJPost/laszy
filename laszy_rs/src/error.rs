@@ -7,6 +7,7 @@ pub enum LaszyError {
     LasError(String),
     LaszyError(String),
     EmptyCloud(String),
+    InvalidFileExtension(String),
 }
 
 impl From<las::Error> for LaszyError {

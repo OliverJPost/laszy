@@ -35,9 +35,13 @@ impl Particle {
 
     fn apply_internal_force(&self, rigidness: f64, neighbours: Vec<&Particle>) {
         for neighbour in neighbours {
-            let mut ztransform = self.z_difference(neighbour) / 2.0;
+            let mut ztransform = self.z_difference(neighbour);
+
+            // Divide by 2.0 because we are applying the force to both particles
+            if self.is_moveable.get() && neighbour.is_moveable.get() {
+                ztransform /= 2.0;
+            }
             if neighbour.is_moveable.get() {
-                //ztransform *= 0.5; // Halve the force if the neighbour is moveable
                 neighbour.z.set(neighbour.z.get() + ztransform * rigidness);
             }
             if self.is_moveable.get() {

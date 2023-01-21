@@ -151,8 +151,6 @@ impl ClothSurface {
     }
 
     pub fn set_max_z_if_closest_to_particle(&mut self, point: &Point) {
-        // Find what pixel of self.particles this point is closest to
-
         let particle = match self.get_closest_cell(point) {
             Some((row, col)) => &mut self.particles[[row, col]],
             None => return,

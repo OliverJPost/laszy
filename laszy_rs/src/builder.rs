@@ -5,7 +5,7 @@ use crate::metadata::Metadata;
 use crate::thinning::ThinningMethod;
 use crate::LaszyError;
 use las::point::Classification;
-use las::{Point, Write};
+use las::Write;
 use las::{Read, Reader};
 use std::fs::File;
 use std::io::BufReader;
@@ -52,30 +52,92 @@ impl PointCloudBuilder {
         })
     }
 
+    /// After initializing a builder from a file, get the metadata from the file.
     pub fn get_metadata(&self) -> &Metadata {
         &self.metadata
     }
 
+    /// Set the cropping method for the builder. This will be applied when the builder is used to
+    /// create a point cloud.
+    ///
+    /// # Arguments
+    ///
+    /// * `crop`: Cropping method to use
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use laszy::{PointCloudBuilder, CroppingMethod};
+    /// let path = "test.las".to_string();
+    /// let mut builder = PointCloudBuilder::from_file(&path).unwrap();
+    /// builder.with_crop(CroppingMethod::BoundingBox {           
+    ///     lower_left: (183_551.47, 332_414.45),
+    ///      upper_right: (183_564.09, 332_424.13)});
+    /// let cloud = builder.to_cloud().unwrap();
+    /// ```
     pub fn with_crop(&mut self, crop: CroppingMethod) -> &mut Self {
         self.crop = crop;
         self
     }
 
+    /// Set the thinning method for the builder. This will be applied when the builder is used to
+    /// create a point cloud.
+    ///
+    /// # Arguments
+    ///
+    /// * `method`: Method to use for thinning, from the ThinningMethod enum.
+    ///
+    /// returns: &mut PointCloudBuilder
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use laszy::{PointCloudBuilder, ThinningMethod};
+    /// let path = "test.las".to_string();
+    /// let mut builder = PointCloudBuilder::from_file(&path).unwrap();
+    /// builder.with_thinning(ThinningMethod::Random { percent: 0.5 });
+    /// let cloud = builder.to_cloud().unwrap();
+    /// ```
     pub fn with_thinning(&mut self, method: ThinningMethod) -> &mut Self {
         self.thinning = method;
         self
     }
 
+    /// Set the cloth surface filter for the builder. This will be applied when the builder is used
+    /// to create a point cloud.
+    ///
+    /// # Arguments
+    ///
+    /// * `rigidness`: Value between 0.0 and 1.0. When 0.0, the cloth surface filter will classify
+    /// all points as ground. When 1.0, the cloth is at maximum rigidity and will classify points
+    /// as ground in a strict manner.
+    /// * `cloth_resolution`: Distance in meters between the cloth surface points.
+    /// * `simulation_threshold`: If the largest amount any particle moved during the simulation is
+    /// less than this value, the simulation will stop.
+    /// * `classification_threshold`: The maximum distance in meters between a point and the cloth
+    /// surface for the point to be classified as ground.
+    ///
+    /// returns: &mut PointCloudBuilder
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use laszy::PointCloudBuilder;
+    /// let path = "test.las".to_string();
+    /// let mut builder = PointCloudBuilder::from_file(&path).unwrap();
+    /// builder.with_csf_ground_reclassification(0.5, 5.0, 0.01, 0.5);
+    /// let cloud = builder.to_cloud().unwrap();
+    /// ```
     pub fn with_csf_ground_reclassification(
         &mut self,
         rigidness: f64,
-        grid_resolution_meters: f64,
+        cloth_resolution: f64,
         simulation_threshold: f64,
         classification_threshold: f64,
     ) -> &mut Self {
         self.csf_filter = Some((
             rigidness,
-            grid_resolution_meters,
+            cloth_resolution,
             simulation_threshold,
             classification_threshold,
         ));
@@ -160,23 +222,56 @@ impl PointCloudBuilder {
         (ll, ur)
     }
 
+    /// Create an .asc DTM (Digital Terrain Model) file from the point cloud. This will use the
+    /// provided cropping and thinning methods and use a CSF simulation to classify ground points.
+    ///
+    /// # Arguments
+    ///
+    /// * `filepath`: Filepath to the .asc file to create, must end in .asc.
+    /// * `rigidness`: Value between 0.0 and 1.0. When 0.0, the cloth surface filter will classify
+    /// all points as ground. When 1.0, the cloth is at maximum rigidity and will classify points
+    /// as ground in a strict manner.
+    /// * `cloth_resolution`: Distance in meters between the cloth surface points.
+    /// * `distance_threshold`: If the largest amount any particle moved during the simulation is
+    /// less than this value (meters), the simulation will stop.
+    ///
+    /// returns: Result<(), LaszyError>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use laszy::PointCloudBuilder;
+    /// let path = "test.las".to_string();
+    /// let mut builder = PointCloudBuilder::from_file(&path).unwrap();
+    /// let re = builder.to_dtm_using_csf(&"test.asc".to_string(), 0.5, 5.0, 0.01);
+    /// assert!(re.is_ok());
+    /// ```
     pub fn to_dtm_using_csf(
         &self,
         filepath: &String,
         rigidness: f64,
-        grid_resolution_meters: f64,
+        cloth_resolution: f64,
         distance_threshold: f64,
     ) -> Result<(), LaszyError> {
-        let cloth = self.perform_csf_simulation(
-            rigidness,
-            grid_resolution_meters,
-            distance_threshold,
-            0.0,
-        )?;
+        let cloth =
+            self.perform_csf_simulation(rigidness, cloth_resolution, distance_threshold, 0.0)?;
         cloth.to_asc(filepath);
         Ok(())
     }
 
+    /// Run the builder with the specified configuration and return a PointCloud.
+    ///
+    /// returns: Result<PointCloud, LaszyError>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use laszy::{PointCloudBuilder, ThinningMethod};
+    /// let path = "test.las".to_string();
+    /// let mut builder = PointCloudBuilder::from_file(&path).unwrap();
+    /// builder.with_thinning(ThinningMethod::Random{percent: 0.5});
+    /// let cloud = builder.to_cloud().unwrap();
+    /// ```
     pub fn to_cloud(&mut self) -> Result<PointCloud, LaszyError> {
         self.cloud = Some(PointCloud::new());
         let loaded_points = self.run_building_iterator("Processing points...")?;
@@ -187,6 +282,21 @@ impl PointCloudBuilder {
         Ok(self.cloud.take().unwrap())
     }
 
+    /// Run the builder with the specified configuration and save it as a .las/.laz file. If you
+    /// want compression, the filepath must end in .laz.
+    ///
+    /// returns: Result<(), LaszyError>
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use laszy::{PointCloudBuilder, ThinningMethod};
+    /// let path = "test.las".to_string();
+    /// let mut builder = PointCloudBuilder::from_file(&path).unwrap();
+    /// builder.with_thinning(ThinningMethod::Random{percent: 0.5});
+    /// // Use a filepath ending in .las or .laz, depending on whether you want to compress the file.
+    /// let cloud = builder.to_file(&"test_output.las".to_string()).unwrap();
+    /// ```
     pub fn to_file(&mut self, filepath: &String) -> Result<(), LaszyError> {
         let file = std::fs::File::create(filepath)?;
         let mut builder = las::Builder::default();

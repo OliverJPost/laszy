@@ -115,19 +115,7 @@ impl ClothSurface {
         if j < columns - 1 {
             neighbours.push(&self.particles[[i, j + 1]]);
         }
-        //Secondary neighbours
-        if i > 1 {
-            neighbours.push(&self.particles[[i - 2, j]]);
-        }
-        if i < rows - 2 {
-            neighbours.push(&self.particles[[i + 2, j]]);
-        }
-        if j > 1 {
-            neighbours.push(&self.particles[[i, j - 2]]);
-        }
-        if j < columns - 2 {
-            neighbours.push(&self.particles[[i, j + 2]]);
-        }
+
         neighbours
     }
 
